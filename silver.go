@@ -10,7 +10,13 @@ import (
 	"html/template"
 	"io/ioutil"
 	"net/http"
+	"regexp"
 )
+
+// validPath is a solution to keeping people from arbitrarily giving paths
+// to be written/read on the server, we are going to use regular expressions to
+// make it fit more rigid guidelines.
+var validPath = regexp.MustCompile("^/(edit|view|save)/a-zA-Z0-9]+)$")
 
 // Page is the contents of the page the browser will display. A page
 // is broken into two pieces, the title and the body of the page.
@@ -55,7 +61,10 @@ func renderTemplate(w http.ResponseWriter, tmpl string, p *Page) {
 // viewHandler loads the page requested from the user via URL and returns html
 // for the user.
 func viewHandler(w http.ResponseWriter, r *http.Request) {
-	title := r.URL.Path[len("/view/"):]
+	title, err := getTitle(w,r)
+	if err != nil {
+		return
+	}
 	p, err := loadPage(title)
 	if err != nil {
 		http.Redirect(w, r, "/edit/"+title, http.StatusFound)
@@ -67,7 +76,10 @@ func viewHandler(w http.ResponseWriter, r *http.Request) {
 // editHandler loads the html for editting a page and returns the user to
 // to the edit page.
 func editHandler(w http.ResponseWriter, r *http.Request) {
-	title := r.URL.Path[len("/edit/"):]
+	title, err := getTitle(w,r)
+	if err != nil {
+		return
+	}
 	p, err := loadPage(title)
 	if err != nil {
 		p = &Page{Title: title}
@@ -78,7 +90,10 @@ func editHandler(w http.ResponseWriter, r *http.Request) {
 // saveHandler takes form data and sends the Page to the save function to write
 // it to the HDD.
 func saveHandler(w http.ResponseWriter, r *http.Request) {
-	title := r.URL.Path[len("/save/"):]
+	title, err := getTitle(w,r)
+	if err != nil {
+		return
+	}
 	body := r.FormValue("body")
 	p := &Page{Title: title, Body: []byte(body)}
 	err != p.save()
@@ -86,6 +101,15 @@ func saveHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 	http.Redirect(w, r, "/view/"+title, http.StatusFound)
+}
+
+func getTitle(w http.ResponseWriter, r *http.Request) (string, err) {
+	m := validPath.FindStringSubmatch(r.URL.Path)
+	if m == nil {
+		http.NotFound(w,r)
+		return "", errors.New("Invalid Page Title")
+	}
+	return m[2], nil  // The title is the second subexpression
 }
 
 // main sends patterns to the handler and then we let the ListenAndServe take
