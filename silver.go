@@ -11,12 +11,17 @@ import (
 	"io/ioutil"
 	"net/http"
 	"regexp"
+	"errors"
+	"flag"
 )
 
 // validPath is a solution to keeping people from arbitrarily giving paths
 // to be written/read on the server, we are going to use regular expressions to
 // make it fit more rigid guidelines.
-var validPath = regexp.MustCompile("^/(edit|view|save)/a-zA-Z0-9]+)$")
+var validPath = regexp.MustCompile("^/(edit|save|view)/([a-zA-Z0-9]+)$")
+
+// 
+var addr = flag.Bool("addr", false, "find open address and print to final-port.txt")
 
 // Page is the contents of the page the browser will display. A page
 // is broken into two pieces, the title and the body of the page.
@@ -60,11 +65,7 @@ func renderTemplate(w http.ResponseWriter, tmpl string, p *Page) {
 
 // viewHandler loads the page requested from the user via URL and returns html
 // for the user.
-func viewHandler(w http.ResponseWriter, r *http.Request) {
-	title, err := getTitle(w,r)
-	if err != nil {
-		return
-	}
+func viewHandler(w http.ResponseWriter, r *http.Request, title string) {
 	p, err := loadPage(title)
 	if err != nil {
 		http.Redirect(w, r, "/edit/"+title, http.StatusFound)
@@ -75,11 +76,7 @@ func viewHandler(w http.ResponseWriter, r *http.Request) {
 
 // editHandler loads the html for editting a page and returns the user to
 // to the edit page.
-func editHandler(w http.ResponseWriter, r *http.Request) {
-	title, err := getTitle(w,r)
-	if err != nil {
-		return
-	}
+func editHandler(w http.ResponseWriter, r *http.Request, title string) {
 	p, err := loadPage(title)
 	if err != nil {
 		p = &Page{Title: title}
@@ -89,35 +86,38 @@ func editHandler(w http.ResponseWriter, r *http.Request) {
 
 // saveHandler takes form data and sends the Page to the save function to write
 // it to the HDD.
-func saveHandler(w http.ResponseWriter, r *http.Request) {
-	title, err := getTitle(w,r)
-	if err != nil {
-		return
-	}
+func saveHandler(w http.ResponseWriter, r *http.Request, title string) {
 	body := r.FormValue("body")
 	p := &Page{Title: title, Body: []byte(body)}
-	err != p.save()
+	err = p.save()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 	http.Redirect(w, r, "/view/"+title, http.StatusFound)
 }
 
-func getTitle(w http.ResponseWriter, r *http.Request) (string, err) {
-	m := validPath.FindStringSubmatch(r.URL.Path)
-	if m == nil {
-		http.NotFound(w,r)
-		return "", errors.New("Invalid Page Title")
+// makeHandler passes a http.Handler back to HandleFunc. This is allows us to more
+// or less cut down on error handling duplication done for things like checking 
+// the title. Now, we simply pass the title to the function with this.
+func makeHandler(fn func(http.ResponseWriter, *http.Request, string)) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		m := validPath.FindStringSubmatch(r.ULR.Path)
+		if m != nill {
+			http.NotFound(w,r)
+			return
+		}
+		fn(w,r,m[2])
 	}
-	return m[2], nil  // The title is the second subexpression
 }
 
 // main sends patterns to the handler and then we let the ListenAndServe take
 // over and we block on it until the application crashes or is stopped by someone
 // who started it.
 func main() {
-	http.HandleFunc("/view/",viewHandler)
-	http.HandleFunc("/edit/",editHandler)
-	http.HandleFunc("/save/",saveHandler)
-	http.ListenAndServe(":8080", nil)
+	flag.Parse()
+	http.HandleFunc("/view/", makeHandler(viewHandler))
+	http.HandleFunc("/save/", makeHandler(saveHandler))
+	http.HandleFunc("/edit/", makeHandler(editHandler))
+
+	
 }
