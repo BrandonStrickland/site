@@ -7,7 +7,6 @@
 package main
 
 import (
-//	"flag"
 	"html/template"
 	"io/ioutil"
 	"net/http"
@@ -17,7 +16,7 @@ import (
 // validPath is a solution to keeping people from arbitrarily giving paths
 // to be written/read on the server, we are going to use regular expressions to
 // make it fit more rigid guidelines.
-var validPath = regexp.MustCompile("^/(edit|save|view)/([a-zA-Z0-9]+)$")
+var validPath = regexp.MustCompile("/")
 
 // i dont dont know what this is for.
 //var addr = flag.Bool("addr", false, "find open address and print to final-port.txt")
@@ -62,11 +61,11 @@ func renderTemplate(w http.ResponseWriter, tmpl string, p *Page) {
 func makeHandler(fn func(http.ResponseWriter, *http.Request, string)) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		m := validPath.FindStringSubmatch(r.URL.Path)
-		if m != nil {
+		if m == nil {
 			http.NotFound(w, r)
 			return
 		}
-		fn(w, r, m[0])
+		fn(w, r, "home")
 	}
 }
 
