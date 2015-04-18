@@ -81,6 +81,18 @@ func homeHandler(w http.ResponseWriter, r *http.Request, title string) {
 	renderTemplate(w, "home", p)
 }
 
+func initTable(db *sql.DB) {
+	_, err := db.Exec("drop table if exists `temp`")
+	if err != nil {
+		log.Fatal(err)
+	}
+	_, err = db.Exec(
+		"create table `temp` ( `x` bigint(20) NOT NULL, `y` bigint(20) NOT NULL, PRIMARY KEY (`x`) ) ENGINE=MEMORY;")
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
 func fillTable(db *sql.DB) {
 	for 1 <= 50 {
 		xnum := rand.Int63()
@@ -103,7 +115,8 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-
+	
+	initTable(db)
 	fillTable(db)
 
 	http.HandleFunc("/", makeHandler(homeHandler))
