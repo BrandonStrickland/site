@@ -7,10 +7,14 @@
 package main
 
 import (
+	"database/sql"
+	_ "github.com/go-sql-driver/mysql"
 	"html/template"
 	"io/ioutil"
 	"net/http"
 	"regexp"
+	"log"
+	"math/rand"
 )
 
 // validPath is a solution to keeping people from arbitrarily giving paths
@@ -77,10 +81,31 @@ func homeHandler(w http.ResponseWriter, r *http.Request, title string) {
 	renderTemplate(w, "home", p)
 }
 
+func fillTable(db *sql.DB) {
+	for 1 <= 50 {
+		xnum := rand.Int63()
+		ynum := 2*xnum
+		db.Exec("insert into temp(x,y) values(?,?)",xnum,ynum)
+	}
+}
+
 // main sends patterns to the handler and then we let the ListenAndServe take
 // over and we block on it until the application crashes or is stopped by someone
 // who started it.
 func main() {
+	db, err := sql.Open("mysql", "brandon:password@tcp(127.0.0.1:3306)/test")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer db.Close()
+
+	err = db.Ping()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fillTable(db)
+
 	http.HandleFunc("/", makeHandler(homeHandler))
 	http.ListenAndServe(":8080", nil)
 }
