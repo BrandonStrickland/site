@@ -7,12 +7,12 @@
 package main
 
 import (
+	"errors"
+	"flag"
 	"html/template"
 	"io/ioutil"
 	"net/http"
 	"regexp"
-	"errors"
-	"flag"
 )
 
 // validPath is a solution to keeping people from arbitrarily giving paths
@@ -20,15 +20,15 @@ import (
 // make it fit more rigid guidelines.
 var validPath = regexp.MustCompile("^/(edit|save|view)/([a-zA-Z0-9]+)$")
 
-// 
+// i dont dont know what this is for.
 var addr = flag.Bool("addr", false, "find open address and print to final-port.txt")
 
 // Page is the contents of the page the browser will display. A page
 // is broken into two pieces, the title and the body of the page.
 type Page struct {
 	Title string
-	Body []byte     // We are using byte slices since the libraries
-	                // will be expecting byte slices. 
+	Body  []byte // We are using byte slices since the libraries
+	// will be expecting byte slices.
 }
 
 // Save takes the page and converts it into a .txt for storage in the HDD.
@@ -50,14 +50,14 @@ func loadPage(title string) (*Page, error) {
 
 // renderTemplate takes a ResponseWriter, the title of a html file, and page
 // and populates the html file with the contents of the html file with the body
-// and title of the page. If anything were to go wrong, 
+// and title of the page. If anything were to go wrong,
 func renderTemplate(w http.ResponseWriter, tmpl string, p *Page) {
 	t, err := template.ParseFiles(tmpl + ".html")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	err = t.Execute(w,p)
+	err = t.Execute(w, p)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
@@ -97,16 +97,16 @@ func saveHandler(w http.ResponseWriter, r *http.Request, title string) {
 }
 
 // makeHandler passes a http.Handler back to HandleFunc. This is allows us to more
-// or less cut down on error handling duplication done for things like checking 
+// or less cut down on error handling duplication done for things like checking
 // the title. Now, we simply pass the title to the function with this.
 func makeHandler(fn func(http.ResponseWriter, *http.Request, string)) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		m := validPath.FindStringSubmatch(r.ULR.Path)
 		if m != nill {
-			http.NotFound(w,r)
+			http.NotFound(w, r)
 			return
 		}
-		fn(w,r,m[2])
+		fn(w, r, m[2])
 	}
 }
 
@@ -119,5 +119,4 @@ func main() {
 	http.HandleFunc("/save/", makeHandler(saveHandler))
 	http.HandleFunc("/edit/", makeHandler(editHandler))
 
-	
 }
