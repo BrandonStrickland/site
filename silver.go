@@ -7,16 +7,88 @@
 package main
 
 import (
-	"database/sql"
-	_ "github.com/go-sql-driver/mysql"
-	"html/template"
-	"io/ioutil"
-	"net/http"
-	"regexp"
+//	"html/template"
+//	"io/ioutil"
 	"log"
 	"math/rand"
+	"net/http"
+//	"regexp"
+	"bytes"
+	"encoding/json"
 )
 
+type Point struct {
+	ID int
+	X int
+	Y int
+}
+
+func generatePoint(id int) Point {
+	x := int(rand.Int31() / 2)
+	y := x * 2
+	return Point{ id, x, y }
+}
+
+func createJsonPackage(id int) ([]byte, error){
+	point := generatePoint(id)
+	mar, err := json.Marshal(point)
+	if err != nil {
+		log.Println(err)
+	}
+	
+	var p Point
+	err = json.Unmarshal(mar, &p)
+	if err != nil {
+		log.Println(err)
+	}
+	
+	return json.Marshal(p)
+}
+
+func postToServer(url string) {
+client := &http.Client{}
+	i := 0
+	for i < 50000 {
+		pay, err := createJsonPackage(i)
+		if err != nil {
+			log.Println(err)
+		}
+
+		req, err := http.NewRequest("POST", url, bytes.NewReader(pay))
+		if err != nil {
+			log.Println(err)
+		}
+
+		resp, err := client.Do(req)
+		if err != nil {
+			log.Println(err) // I dont know how to handle this right now
+		}
+		defer resp.Body.Close()
+
+		if err != nil {
+			log.Println(err) // i dont know how to handle this right now
+		}
+		defer resp.Body.Close()
+		
+		if resp.StatusCode >= 400 {
+			log.Println(err) // i have no idea what to do here right now
+		}
+		i = i + 1
+	}
+}
+
+func main() {
+	url := "http://127.0.0.1:8080"
+	postToServer(url)
+}
+
+
+
+
+
+
+
+/*
 // validPath is a solution to keeping people from arbitrarily giving paths
 // to be written/read on the server, we are going to use regular expressions to
 // make it fit more rigid guidelines.
@@ -80,45 +152,8 @@ func homeHandler(w http.ResponseWriter, r *http.Request, title string) {
 	}
 	renderTemplate(w, "home", p)
 }
-
-func initTable(db *sql.DB) {
-	_, err := db.Exec("drop table if exists `temp`")
-	if err != nil {
-		log.Fatal(err)
-	}
-	_, err = db.Exec(
-		"create table `temp` ( `x` bigint(20) NOT NULL, `y` bigint(20) NOT NULL, PRIMARY KEY (`x`) ) ENGINE=MEMORY;")
-	if err != nil {
-		log.Fatal(err)
-	}
-}
-
-func fillTable(db *sql.DB) {
-	for 1 <= 50 {
-		xnum := rand.Int63()
-		ynum := 2*xnum
-		db.Exec("insert into temp(x,y) values(?,?)",xnum,ynum)
-	}
-}
-
+*/
 // main sends patterns to the handler and then we let the ListenAndServe take
 // over and we block on it until the application crashes or is stopped by someone
 // who started it.
-func main() {
-	db, err := sql.Open("mysql", "brandon:password@tcp(127.0.0.1:3306)/test")
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer db.Close()
 
-	err = db.Ping()
-	if err != nil {
-		log.Fatal(err)
-	}
-	
-	initTable(db)
-	fillTable(db)
-
-	http.HandleFunc("/", makeHandler(homeHandler))
-	http.ListenAndServe(":8080", nil)
-}
