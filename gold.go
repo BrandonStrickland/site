@@ -1,7 +1,7 @@
 package main
 
 import (
-	"database/sql"
+	"database/sql" 
 	_ "github.com/go-sql-driver/mysql"
 	"net/http"
 	"log"
@@ -17,7 +17,7 @@ var db *sql.DB
 type Point struct {
 	ID int
 	X int
-	Y int
+ 	Y int
 }
 
 // initTable creates a table for us to use.
@@ -43,7 +43,17 @@ func cleanTable(db *sql.DB) {
 	if err != nil {
 		log.Println(err)
 	}
+}
 
+// jsonHandler takes a byte slice from the readAll call and sends it to function that inserts it into the table.
+func jsonHandler(body []byte) error {
+	var p Point
+	err := json.Unmarshal(body, &p)
+	if err != nil {
+		return err
+	}
+	go fillTable(db,p)
+	return nil
 }
 
 // requestHandler will do all error checking. The following is a list of resposibilities:
@@ -52,16 +62,13 @@ func cleanTable(db *sql.DB) {
 // 3. pass to fillTable(db)
 func requestHandler(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
-	var p Point
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		log.Println(err) // more error handling I dont understand right now
 	}
-	err = json.Unmarshal(body, &p)
-	if err != nil {
+	if err = jsonHandler(body); err != nil {
 		log.Println(err)
 	}
-	fillTable(db,p)
 }
 
 // main does a few things that could be abstracted out but no need to worry about that right now.
@@ -73,7 +80,8 @@ func requestHandler(w http.ResponseWriter, r *http.Request) {
 // 
 // ~~~~~~things to fix~~~~~~~
 // THE GLOBAL DB POINTER
-// 
+// Ideally, there should be one entry and one exit, reconstruct functions to correctly handle errors.
+//  
 // The program idea follows:
 // 1. listenAndServe 
 // 2. receive json and unmarshal it
