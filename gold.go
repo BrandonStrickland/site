@@ -89,10 +89,11 @@ func Handler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	r.ParseForm()
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		http.Error(w, "something happened", http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusNotAcceptable)
 	}
+	// make 400 or 500....4xx - 
 	if err = JsonHandler(db, body); err != nil {
-		http.Error(w, "something happened", http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
 
